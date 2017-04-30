@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MyMap</string>
+    <string name="loading">正在加载…</string>
+    <string name="no_location">附近没有其它地点</string>
+</resources>
