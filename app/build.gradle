@@ -34,4 +34,5 @@ dependencies {
     compile 'com.android.support:multidex:'
     compile 'com.android.support:design:26.0.0-alpha1'
     compile files('libs/AMap3DMap_5.0.0_AMapNavi_5.0.0_20170321.jar')
+    compile 'com.google.code.gson:gson:2.8.0'
 }

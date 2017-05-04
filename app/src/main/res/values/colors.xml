@@ -12,6 +12,8 @@
     <color name="red">#FF0000</color>
     <color name="darkyellow">#FFCC33</color>
 
+    <color name="item_text_title_color">#cccccc</color>
+    <color name="item_text_title_bg">#F6F6F6</color>
 
 
     <color name="blue">#4287FF</color>

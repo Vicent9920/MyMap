@@ -55,6 +55,7 @@
             android:layout_below="@+id/rl_tv_end"/>
     </RelativeLayout>
 
+
     <com.amap.api.maps.MapView
         android:id="@+id/navi_view"
         android:layout_width="match_parent"

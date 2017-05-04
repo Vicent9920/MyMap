@@ -1,6 +1,8 @@
 package cn.com.vicent.mymap;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
@@ -14,6 +16,7 @@ import android.util.SparseArray;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
@@ -41,12 +44,15 @@ import com.amap.api.navi.model.NaviLatLng;
 import com.amap.api.navi.view.RouteOverLay;
 import com.amap.api.services.core.LatLonPoint;
 import com.autonavi.tbt.TrafficFacilityInfo;
+import com.google.gson.Gson;
 import com.zhy.adapter.recyclerview.CommonAdapter;
 import com.zhy.adapter.recyclerview.base.ViewHolder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import static cn.com.vicent.mymap.R.id.ll_itemview;
 
 public class NavigationActivity extends AppCompatActivity implements View.OnClickListener, LocationSource, AMapLocationListener, AMapNaviListener {
     private static final String TAG = "NavigationActivity";
@@ -63,6 +69,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     private AMapLocationClientOption mLocationOption;
     private RecyclerView mRecyclerView;
     private CommonAdapter mAdapter;
+    private int currentPosition,lastPosition = -1;
+    private SharedPreferences sharedPreferences;
     /**************************************************导航相关************************************** ********************/
     private AMapNavi mAMapNavi;
     /**
@@ -83,6 +91,14 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     private SparseArray<RouteOverLay> routeOverlays = new SparseArray<RouteOverLay>();
     private List<AMapNaviPath> ways = new ArrayList<>();
     private boolean calculateSuccess;
+    private int routeIndex = 0;
+    private int zindex = 0;
+
+    public static void start(Context context){
+        Intent intent = new Intent(context,NavigationActivity.class);
+        intent.putExtra("gps",true);
+        context.startActivity(intent);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,9 +106,31 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         setContentView(R.layout.activity_navigation);
         ActionBar actionBar = getSupportActionBar();
         if(actionBar!=null)actionBar.hide();
+        sharedPreferences = getSharedPreferences("navigation",MODE_PRIVATE);
         initView();
+        if(getIntent().getBooleanExtra("gps",false)){//是否需要恢复数据
+            initData();
+        }
         mapview.onCreate(savedInstanceState);// 此方法必须重写
         initMap();
+
+    }
+
+    /**
+     * 恢复数据
+     */
+    private void initData() {
+        String str = sharedPreferences.getString("adress","输入终点");
+        String lp = sharedPreferences.getString("lp","");
+        String lp1 = sharedPreferences.getString("lp1","");
+        tvEnd.setText(str);
+        endList.clear();
+        Gson gson=new Gson();
+        Bean bean = gson.fromJson(lp,Bean.class);
+        Bean bean1 = gson.fromJson(lp1,Bean.class);
+        endList.add(new NaviLatLng(bean.getLatitude(),bean.getLongitude()));
+        startList.add(new NaviLatLng(bean1.getLatitude(),bean1.getLongitude()));
+        navigationType = sharedPreferences.getInt("navigationType",0);
 
     }
 
@@ -107,7 +145,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         tvLength = (TextView) findViewById(R.id.rl_tv_length);
         mTabLayout = (TabLayout) findViewById(R.id.tabs);
         //tab的字体选择器,默认灰色,选择时白色
-        mTabLayout.setTabTextColors(Color.BLACK, Color.WHITE);
+        mTabLayout.setTabTextColors(Color.LTGRAY, Color.WHITE);
         //设置tab的下划线颜色,默认是粉红色
         mTabLayout.setSelectedTabIndicatorColor(Color.WHITE);
         mTabLayout.addTab(mTabLayout.newTab().setText("驾车"));
@@ -162,35 +200,63 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             mAMapNavi = AMapNavi.getInstance(getApplicationContext());
             mAMapNavi.addAMapNaviListener(this);
             amap.moveCamera(CameraUpdateFactory.zoomTo(15));
+
         }
     }
     @Override
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.rl_tv_end:
-                Intent intent = new Intent(this,PiclocationActivity.class);
+                Intent intent = new Intent(this,PiclocationActivity.class);//拾取坐标点
                 startActivityForResult(intent,0);
+                endList.clear();
                 break;
             case R.id.rl_tv_navistart:
-                if(startList.size()==0){
-                    Snackbar.make(tvEnd,"未获取到当前位置，不能导航",Snackbar.LENGTH_SHORT).show();
-                }else if(endList.size()==0){
-                    Snackbar.make(tvEnd,"未获取到终点，不能导航",Snackbar.LENGTH_SHORT).show();
-                }else{
-                    if (!calculateSuccess) {
-                        Snackbar.make(tvEnd,"请先计算路线",Snackbar.LENGTH_SHORT).show();
-                        return;
-                    }else{
-                        Intent activity = new Intent(this, GPSNaviActivity.class);
-                        activity.putExtra("start",startList.get(0));
-                        activity.putExtra("end",endList.get(0));
-                        startActivity(activity);
-//                        Intent gpsintent = new Intent(getApplicationContext(), RouteNaviActivity.class);
-//                        gpsintent.putExtra("gps", true);
-//                        startActivity(gpsintent);
-                        finish();
-                    }
+                clickNavigation();
+        }
+    }
+
+    /**
+     * 导航按钮点击事件实现方法
+     */
+    private void clickNavigation() {
+        if(startList.size()==0){
+            Snackbar.make(tvEnd,"未获取到当前位置，不能导航",Snackbar.LENGTH_SHORT).show();
+        }else if(endList.size()==0){
+            Snackbar.make(tvEnd,"未获取到终点，不能导航",Snackbar.LENGTH_SHORT).show();
+        }else{
+            if (!calculateSuccess) {
+                Snackbar.make(tvEnd,"请先计算路线",Snackbar.LENGTH_SHORT).show();
+                return;
+            }else{//实时导航
+                if(routeIndex>ways.size()){
+                    routeIndex = 0;
                 }
+                mAMapNavi.selectRouteId(routeOverlays.keyAt(routeIndex));
+                Intent gpsintent = new Intent(this, GPSNaviActivity.class);
+                gpsintent.putExtra("gps", true);
+                startActivity(gpsintent);
+                sharedPreferences.edit().putString("adress",tvEnd.getText().toString()).apply();
+                double la1 = endList.get(0).getLatitude();
+                double lon1 = endList.get(0).getLongitude();
+                Bean beanEnd = new Bean();
+                beanEnd.setLatitude(la1);
+                beanEnd.setLongitude(lon1);
+                Gson gson = new Gson();
+                String lp = gson.toJson(beanEnd);
+                sharedPreferences.edit().putString("lp",lp).apply();
+                double la2 = startList.get(0).getLatitude();
+                double lon2 = startList.get(0).getLongitude();
+//                Bean beanStart = new Bean();
+//                beanStart.setLongitude(lon2);
+//                beanStart.setLatitude(la2);
+                beanEnd.setLatitude(la2);
+                beanEnd.setLongitude(lon2);
+                lp = gson.toJson(beanEnd);
+                sharedPreferences.edit().putString("lp1",lp).apply();
+                sharedPreferences.edit().putInt("navigationType",navigationType).apply();
+                finish();//如果不finish（），实时导航后会导致mAMapNavi不可用，路线规划失败
+            }
         }
     }
 
@@ -226,82 +292,26 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         }
     }
 
-
-
-
-
-
     /**
-     * 方法必须重写
-     */
-    protected void onResume() {
-        super.onResume();
-        mapview.onResume();
-        clearRoute();
-        planRoute();
-    }
-    /**
-     * 清除当前地图上算好的路线
-     */
-    private void clearRoute() {
-        for (int i = 0; i < routeOverlays.size(); i++) {
-            RouteOverLay routeOverlay = routeOverlays.valueAt(i);
-            routeOverlay.removeFromMap();
-        }
-        routeOverlays.clear();
-    }
-    /**
-     * 路线规划
-     */
-    private void planRoute() {
-        if(startList.size()>0 && endList.size()>0){
-            if(navigationType == 0){//驾车
-                int strategy=0;
-                try {
-                    strategy = mAMapNavi.strategyConvert(true, false, false, true, true);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                mAMapNavi.calculateDriveRoute(startList, endList, wayList, strategy);
-            }else if(navigationType == 1){//步行
-                mAMapNavi.calculateWalkRoute(startList.get(0), endList.get(0));
-            }else{//骑行
-                mAMapNavi.calculateRideRoute(startList.get(0), endList.get(0));
-            }
-        }
-    }
-
-
-    @Override
-    public void onCalculateRouteFailure(int i) {
-        calculateSuccess = false;
-        Snackbar.make(tvEnd,"计算路线失败",Snackbar.LENGTH_SHORT).show();
-    }
-
-
-    /**
-     * 多条路径计算结果回调
+     * 多条路线计算结果回调2
      * @param ints
      */
     @Override
     public void onCalculateMultipleRoutesSuccess(int[] ints) {
-//清空上次计算的路径列表。
+        //清空上次计算的路径列表。
         routeOverlays.clear();
         ways.clear();
         HashMap<Integer, AMapNaviPath> paths = mAMapNavi.getNaviPaths();
         for (int i = 0; i < ints.length; i++) {
             AMapNaviPath path = paths.get(ints[i]);
             if (path != null) {
-                if(i == 0){
-                    drawRoutes(-1, path);
-                    ways.add(path);
-                }else{
-                    ways.add(path);
-                }
-
+                drawRoutes(ints[i], path);
+                ways.add(path);
             }
         }
         if(ways.size()>0){
+            currentPosition = 0;
+            lastPosition = -1;
             mAdapter.notifyDataSetChanged();
             mRecyclerView.setVisibility(View.VISIBLE);
             oneWay.setVisibility(View.GONE);
@@ -316,11 +326,11 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             mRecyclerView.setVisibility(View.GONE);
             tvNavi.setText("准备导航");
         }
-
+        changeRoute();
     }
+
     /**
-     * 单条路线计算结果回调
-     *  多条路线与单条路线不是根据结果来标识，而是根据计算方法的参数来标识
+     * 单条路线计算结果回调2
      */
     @Override
     public void onCalculateRouteSuccess() {
@@ -341,25 +351,167 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         tvNavi.setText("开始导航");
     }
 
+    /**
+     * 选择路线2
+     */
+    public void changeRoute() {
+        if (!calculateSuccess) {
+            Toast.makeText(this, "请先算路", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        /**
+         * 计算出来的路径只有一条
+         */
+        if (routeOverlays.size() == 1) {
+            //必须告诉AMapNavi 你最后选择的哪条路
+            mAMapNavi.selectRouteId(routeOverlays.keyAt(0));
+            return;
+        }
+
+        if (routeIndex >= routeOverlays.size())
+            routeIndex = 0;
+        int routeID = routeOverlays.keyAt(routeIndex);
+        //突出选择的那条路
+        for (int i = 0; i < routeOverlays.size(); i++) {
+            int key = routeOverlays.keyAt(i);
+            routeOverlays.get(key).setTransparency(0.4f);
+        }
+        routeOverlays.get(routeID).setTransparency(1);
+        /**把用户选择的那条路的权值弄高，使路线高亮显示的同时，重合路段不会变的透明**/
+        routeOverlays.get(routeID).setZindex(zindex++);
+
+        //必须告诉AMapNavi 你最后选择的哪条路
+        mAMapNavi.selectRouteId(routeID);
+        routeIndex++;
+
+    }
+
+    /**
+     * 方法必须重写
+     */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mapview.onResume();
+        planRoute();//路线规划
+    }
+    /**
+     * 清除当前地图上算好的路线
+     */
+    private void clearRoute() {
+        for (int i = 0; i < routeOverlays.size(); i++) {
+            RouteOverLay routeOverlay = routeOverlays.valueAt(i);
+            routeOverlay.removeFromMap();
+        }
+        routeOverlays.clear();
+        ways.clear();
+    }
+    /**
+     * 路线规划
+     */
+    private void planRoute() {
+        mRecyclerView.setVisibility(View.GONE);
+        oneWay.setVisibility(View.GONE);
+        if(startList.size()>0 && endList.size()>0){
+            if(navigationType == 0){//驾车
+                int strategy=0;
+                try {
+                    strategy = mAMapNavi.strategyConvert(true, false, false, true, true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                mAMapNavi.calculateDriveRoute(startList, endList, wayList, strategy);
+            }else if(navigationType == 1){//步行
+                mAMapNavi.calculateWalkRoute(startList.get(0), endList.get(0));
+            }else{//骑行
+                Log.d(TAG, "planRoute: "+startList.get(0).toString()+","+endList.get(0).toString());
+                mAMapNavi.calculateRideRoute(startList.get(0), endList.get(0));
+            }
+        }
+    }
+
+
+    @Override
+    public void onCalculateRouteFailure(int i) {
+        calculateSuccess = false;
+        Snackbar.make(tvEnd,"计算路线失败",Snackbar.LENGTH_SHORT).show();
+
+    }
+
 
 
     private CommonAdapter getAdapter() {
 
         return new CommonAdapter<AMapNaviPath>(this, R.layout.item_recycleview_naviways, ways)
         {
+            /**
+             * 选中的背景色修改
+             */
+            private void selectedBackground(ViewHolder holder) {
+                holder.getView(ll_itemview).setBackgroundResource(R.drawable.item_naviway_selected_bg);
+                TextView tvTitle = holder.getView(R.id.ll_tv_labels);
+                TextView tvTime = holder.getView(R.id.ll_tv_time);
+                TextView tvLength = holder.getView(R.id.ll_tv_length);
+                tvTitle.setTextColor(Color.WHITE);
+                tvTime.setTextColor(getResources().getColor(R.color.blue));
+                tvLength.setTextColor(getResources().getColor(R.color.blue));
+                tvTitle.setBackgroundResource(R.drawable.item_naviway_title_selected);
+            }
+            /**
+             * 清除选中的样式
+             */
+            private void cleanSelector() {
+                if(lastPosition!=-1){
+                    View view = mRecyclerView.getChildAt(lastPosition);
+                    view.setBackgroundResource(R.drawable.item_naviway_normal_bg);
+                    TextView tvTitle = (TextView) view.findViewById(R.id.ll_tv_labels);
+                    TextView tvTime = (TextView) view.findViewById(R.id.ll_tv_time);
+                    TextView tvLength = (TextView) view.findViewById(R.id.ll_tv_length);
+                    tvTitle.setTextColor(getResources().getColor(R.color.item_text_title_color));
+                    tvLength.setTextColor(getResources().getColor(R.color.item_text_title_color));
+                    tvTime.setTextColor(getResources().getColor(R.color.black));
+                    tvTitle.setBackgroundResource(R.drawable.item_naviway_title_normal);
+                }
 
+            }
             @Override
-            protected void convert(ViewHolder holder, final AMapNaviPath aMapNaviPath, int position) {
-//                holder.setText(R.id.ll_tv_labels,aMapNaviPath.getLabels());
+            protected void convert(final ViewHolder holder, final AMapNaviPath aMapNaviPath, final int position) {
+                String title = aMapNaviPath.getLabels();
+                if(title.split(",").length>=3){
+                    title = "推荐";
+                }
+                holder.setText(R.id.ll_tv_labels,title);
                 holder.setText(R.id.ll_tv_time,getTime(aMapNaviPath.getAllTime()));
                 holder.setText(R.id.ll_tv_length,getLength(aMapNaviPath.getAllLength()));
-                holder.getView(R.id.ll_itemview).setOnClickListener(new View.OnClickListener() {
+
+                holder.getView(ll_itemview).setOnClickListener(new View.OnClickListener() {
                     @Override
-                    public void onClick(View v) {
-                        clearRoute();
-                        drawRoutes(-1, aMapNaviPath);
+                    public void onClick(View view) {
+                        currentPosition = position;
+                        if(lastPosition==currentPosition){
+                            return;
+                        }else{
+                            routeIndex = position;
+                            changeRoute();
+                            selectedBackground(holder);
+                            cleanSelector();
+                        }
+                        lastPosition = position;
                     }
+
                 });
+                if (position==0){
+                    currentPosition = position;
+                    if(lastPosition==currentPosition){
+                        return;
+                    }else{
+                        routeIndex = position;
+                        changeRoute();
+                        selectedBackground(holder);
+                        cleanSelector();
+                    }
+                    lastPosition = position;
+                }
             }
         };
     }
@@ -402,8 +554,12 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         if (mListener != null&&amapLocation != null) {
             if (amapLocation != null
                     &&amapLocation.getErrorCode() == 0) {
-                startList.add(new NaviLatLng(amapLocation.getLatitude(),amapLocation.getLongitude()));
-                mListener.onLocationChanged(amapLocation);// 显示系统小蓝点
+                if(startList.size()==0)
+                    startList.add(new NaviLatLng(amapLocation.getLatitude(),amapLocation.getLongitude()));
+                if(!calculateSuccess){
+                    mListener.onLocationChanged(amapLocation);// 显示系统小蓝点
+                }
+
             } else {
                 String errText = "定位失败," + amapLocation.getErrorCode()+ ": " + amapLocation.getErrorInfo();
                 Log.e("AmapErr",errText);
@@ -455,6 +611,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     protected void onPause() {
         super.onPause();
         mapview.onPause();
+        clearRoute();
     }
 
     /**
@@ -527,9 +684,6 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onArriveDestination() {
 
     }
-
-
-
     @Override
     public void onReCalculateRouteForTrafficJam() {
 
@@ -564,7 +718,6 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onServiceAreaUpdate(AMapServiceAreaInfo[] aMapServiceAreaInfos) {
 
     }
-
 
     @Override
     public void showCross(AMapNaviCross aMapNaviCross) {
@@ -622,6 +775,5 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onPlayRing(int i) {
 
     }
-
 
 }
