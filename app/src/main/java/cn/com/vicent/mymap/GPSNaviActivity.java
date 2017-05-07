@@ -23,6 +23,7 @@ import com.amap.api.navi.model.AimLessModeStat;
 import com.amap.api.navi.model.NaviInfo;
 import com.amap.api.navi.model.NaviLatLng;
 import com.autonavi.tbt.TrafficFacilityInfo;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,6 +58,9 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
 //        //实例化语音引擎
         mTtsManager = TTSController.getInstance(getApplicationContext());
         mTtsManager.init();
+        mAMapNavi.addAMapNaviListener(mTtsManager);
+        mAMapNavi.startNavi(NaviType.GPS);
+
 
     }
     @Override
@@ -84,7 +88,7 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mAMapNaviView.onDestroy();
+//        mAMapNaviView.onDestroy();
         //since 1.6.0 不再在naviview destroy的时候自动执行AMapNavi.stopNavi();请自行执行
         mAMapNavi.stopNavi();
         mAMapNavi.destroy();
@@ -150,13 +154,13 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
      */
     @Override
     public void onInitNaviSuccess() {
-        int strategy=0;
-        try {
-            strategy = mAMapNavi.strategyConvert(true, false, false, false, false);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        mAMapNavi.calculateDriveRoute(sList, eList, mWayPointList, strategy);
+//        int strategy=0;
+//        try {
+//            strategy = mAMapNavi.strategyConvert(true, false, false, false, false);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//        mAMapNavi.calculateDriveRoute(sList, eList, mWayPointList, strategy);
     }
 
     @Override
@@ -192,7 +196,7 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
     @Override
     public void onCalculateRouteSuccess() {
         //实时导航
-        mAMapNavi.startNavi(NaviType.GPS);
+//        mAMapNavi.startNavi(NaviType.GPS);
         //模拟导航
 //        mAMapNavi.startNavi(NaviType.EMULATOR);
     }

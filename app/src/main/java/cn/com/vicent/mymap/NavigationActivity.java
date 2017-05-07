@@ -156,9 +156,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         tvNavi = (TextView) findViewById(R.id.rl_tv_navistart);
         tvNavi.setOnClickListener(this);
         tvEnd.setOnClickListener(this);
-        //添加页卡标题
-
-        mTabLayout.setOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+        //添加Tab点击事件
+        mTabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 String tabName = tab.getText().toString();
@@ -183,6 +182,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
             }
         });
+
     }
 
     /**
@@ -255,7 +255,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 lp = gson.toJson(beanEnd);
                 sharedPreferences.edit().putString("lp1",lp).apply();
                 sharedPreferences.edit().putInt("navigationType",navigationType).apply();
-                finish();//如果不finish（），实时导航后会导致mAMapNavi不可用，路线规划失败
+//                finish();//如果不finish（），实时导航后会导致mAMapNavi不可用，路线规划失败
             }
         }
     }
@@ -352,7 +352,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     }
 
     /**
-     * 选择路线2
+     * 选择路线
      */
     public void changeRoute() {
         if (!calculateSuccess) {
@@ -410,12 +410,28 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
      * 路线规划
      */
     private void planRoute() {
-        mRecyclerView.setVisibility(View.GONE);
-        oneWay.setVisibility(View.GONE);
+        mRecyclerView.setVisibility(View.GONE);//多条路线规划结果
+        oneWay.setVisibility(View.GONE);//一条路线规划结果
         if(startList.size()>0 && endList.size()>0){
             if(navigationType == 0){//驾车
                 int strategy=0;
                 try {
+                    /**
+                     * 方法:
+                     *   int strategy=mAMapNavi.strategyConvert(congestion, avoidhightspeed, cost, hightspeed, multipleroute);
+                     * 参数:
+                     * @congestion 躲避拥堵
+                     * @avoidhightspeed 不走高速
+                     * @cost 避免收费
+                     * @hightspeed 高速优先
+                     * @multipleroute 多路径
+                     *
+                     * 说明:
+                     *      以上参数都是boolean类型，其中multipleroute参数表示是否多条路线，如果为true则此策略会算出多条路线。
+                     * 注意:
+                     *      不走高速与高速优先不能同时为true
+                     *      高速优先与避免收费不能同时为true
+                     */
                     strategy = mAMapNavi.strategyConvert(true, false, false, true, true);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -424,7 +440,6 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             }else if(navigationType == 1){//步行
                 mAMapNavi.calculateWalkRoute(startList.get(0), endList.get(0));
             }else{//骑行
-                Log.d(TAG, "planRoute: "+startList.get(0).toString()+","+endList.get(0).toString());
                 mAMapNavi.calculateRideRoute(startList.get(0), endList.get(0));
             }
         }
@@ -444,6 +459,19 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
         return new CommonAdapter<AMapNaviPath>(this, R.layout.item_recycleview_naviways, ways)
         {
+            /**
+             * 初始化Item样式
+             */
+            private void initItemBackground(ViewHolder holder) {
+                holder.getView(ll_itemview).setBackgroundResource(R.drawable.item_naviway_normal_bg);
+                TextView tvTitle = holder.getView(R.id.ll_tv_labels);
+                TextView tvTime = holder.getView(R.id.ll_tv_time);
+                TextView tvLength = holder.getView(R.id.ll_tv_length);
+                tvTitle.setTextColor(getResources().getColor(R.color.item_text_title_color));
+                tvLength.setTextColor(getResources().getColor(R.color.item_text_title_color));
+                tvTime.setTextColor(getResources().getColor(R.color.black));
+                tvTitle.setBackgroundResource(R.drawable.item_naviway_title_normal);
+            }
             /**
              * 选中的背景色修改
              */
@@ -476,6 +504,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             }
             @Override
             protected void convert(final ViewHolder holder, final AMapNaviPath aMapNaviPath, final int position) {
+
                 String title = aMapNaviPath.getLabels();
                 if(title.split(",").length>=3){
                     title = "推荐";
@@ -488,9 +517,11 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                     @Override
                     public void onClick(View view) {
                         currentPosition = position;
+                        //已经选中，再次选中直接返回
                         if(lastPosition==currentPosition){
                             return;
                         }else{
+                            //当前的下标值赋值给当前选择的线路下标值
                             routeIndex = position;
                             changeRoute();
                             selectedBackground(holder);
@@ -511,6 +542,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                         cleanSelector();
                     }
                     lastPosition = position;
+                }else{
+                    initItemBackground(holder);
                 }
             }
         };
@@ -634,6 +667,13 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             mlocationClient.onDestroy();
         }
     }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        mAMapNavi.destroy();
+    }
+
     /**
      * ************************************************** 在算路页面，以下接口全不需要处理，在以后的版本中SDK会进行优化***********************************************************************************************
      **/
