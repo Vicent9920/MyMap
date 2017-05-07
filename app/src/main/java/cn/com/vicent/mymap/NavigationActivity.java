@@ -234,7 +234,6 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 }
                 mAMapNavi.selectRouteId(routeOverlays.keyAt(routeIndex));
                 Intent gpsintent = new Intent(this, GPSNaviActivity.class);
-                gpsintent.putExtra("gps", true);
                 startActivity(gpsintent);
                 sharedPreferences.edit().putString("adress",tvEnd.getText().toString()).apply();
                 double la1 = endList.get(0).getLatitude();
