@@ -3,7 +3,6 @@ package cn.com.vicent.mymap;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Point;
@@ -40,10 +39,13 @@ import com.amap.api.services.geocoder.GeocodeResult;
 import com.amap.api.services.geocoder.GeocodeSearch;
 import com.amap.api.services.geocoder.RegeocodeQuery;
 import com.amap.api.services.geocoder.RegeocodeResult;
+import com.amap.api.services.help.Tip;
 import com.amap.api.services.poisearch.PoiResult;
 import com.amap.api.services.poisearch.PoiSearch;
 import com.zhy.adapter.recyclerview.CommonAdapter;
 import com.zhy.adapter.recyclerview.base.ViewHolder;
+
+import org.greenrobot.eventbus.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -419,10 +421,15 @@ private CommonAdapter getAdapter() {
             holder.getView(R.id.rl_tv_subit).setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Intent intent = new Intent(mContext,NavigationActivity.class);
-                    intent.putExtra("value",listViewHoldier.lp);
-                    intent.putExtra("address",listViewHoldier.address);
-                    setResult(RESULT_OK,intent);
+//                    Intent intent = new Intent(mContext,NavigationActivity.class);
+//                    intent.putExtra("value",listViewHoldier.lp);
+//                    intent.putExtra("address",listViewHoldier.address);
+//                    setResult(RESULT_OK,intent);
+                    Tip tip = new Tip();
+                    tip.setDistrict(listViewHoldier.address);
+                    tip.setPostion(listViewHoldier.lp);
+                    EventBus.getDefault().postSticky(tip);
+
                     finish();
                 }
             });

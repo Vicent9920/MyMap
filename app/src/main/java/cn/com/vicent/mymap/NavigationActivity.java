@@ -43,10 +43,15 @@ import com.amap.api.navi.model.NaviInfo;
 import com.amap.api.navi.model.NaviLatLng;
 import com.amap.api.navi.view.RouteOverLay;
 import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.help.Tip;
 import com.autonavi.tbt.TrafficFacilityInfo;
 import com.google.gson.Gson;
 import com.zhy.adapter.recyclerview.CommonAdapter;
 import com.zhy.adapter.recyclerview.base.ViewHolder;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -106,6 +111,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         setContentView(R.layout.activity_navigation);
         ActionBar actionBar = getSupportActionBar();
         if(actionBar!=null)actionBar.hide();
+        EventBus.getDefault().register(this);
         sharedPreferences = getSharedPreferences("navigation",MODE_PRIVATE);
         initView();
         if(getIntent().getBooleanExtra("gps",false)){//是否需要恢复数据
@@ -207,8 +213,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.rl_tv_end:
-                Intent intent = new Intent(this,PiclocationActivity.class);//拾取坐标点
-                startActivityForResult(intent,0);
+                Intent intent = new Intent(this,PoiSearchActivity.class);//拾取坐标点
+                startActivity(intent);
                 endList.clear();
                 break;
             case R.id.rl_tv_navistart:
@@ -290,7 +296,13 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             endList.add(new NaviLatLng(endLp.getLatitude(),endLp.getLongitude()));
         }
     }
-
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onMessageEvent(Tip tip) {
+        tvEnd.setText("到     "+tip.getDistrict());
+        LatLonPoint endLp = tip.getPoint();
+        endList.clear();
+        endList.add(new NaviLatLng(endLp.getLatitude(),endLp.getLongitude()));
+    };
     /**
      * 多条路线计算结果回调2
      * @param ints
@@ -369,6 +381,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
         if (routeIndex >= routeOverlays.size())
             routeIndex = 0;
+        //根据选中的路线下标值得到路线ID
         int routeID = routeOverlays.keyAt(routeIndex);
         //突出选择的那条路
         for (int i = 0; i < routeOverlays.size(); i++) {
@@ -665,6 +678,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         if(null != mlocationClient){
             mlocationClient.onDestroy();
         }
+        EventBus.getDefault().unregister(this);
     }
 
     @Override

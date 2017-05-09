@@ -52,10 +52,10 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
         mAMapNaviView.setAMapNaviViewListener(this);
         //获取AMapNavi实例
         mAMapNavi = AMapNavi.getInstance(this);
-//添加监听回调，用于处理算路成功
+        //添加监听回调，用于处理算路成功
         mAMapNavi.addAMapNaviListener(this);
 
-//        //实例化语音引擎
+        //实例化语音引擎
         mTtsManager = TTSController.getInstance(getApplicationContext());
         mTtsManager.init();
         mAMapNavi.addAMapNaviListener(mTtsManager);
@@ -91,7 +91,7 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
 //        mAMapNaviView.onDestroy();
         //since 1.6.0 不再在naviview destroy的时候自动执行AMapNavi.stopNavi();请自行执行
         mAMapNavi.stopNavi();
-        mAMapNavi.destroy();
+//        mAMapNavi.destroy();
         mTtsManager.destroy();
     }
 
@@ -110,7 +110,7 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
     @Override
     public boolean onNaviBackClick() {
 
-
+        //导航页面左下角返回按钮的回调接口 false-由SDK主动弹出『退出导航』对话框，true-SDK不主动弹出『退出导航对话框』，由用户自定义
         return false;
     }
 

@@ -32,4 +32,6 @@
 
     <color name="gray_black">#88000000</color>
     <color name="soft_black">#cc000000</color>
+    <drawable name="transparent">#00000000</drawable>
+    <color name="transparent">#00000000</color>
 </resources>
