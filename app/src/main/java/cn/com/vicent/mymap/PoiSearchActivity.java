@@ -10,6 +10,7 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.AutoCompleteTextView;
 
+import com.amap.api.location.AMapLocation;
 import com.amap.api.services.core.AMapException;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.InputtipsQuery;
@@ -27,7 +28,9 @@ import java.util.List;
 public class PoiSearchActivity extends AppCompatActivity implements TextWatcher, Inputtips.InputtipsListener, View.OnClickListener {
 
     private CommonAdapter mAdapter;
+    private RecyclerView mRecyclerView;
     private List<Tip> tips = new ArrayList<>();
+    private String city = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -37,7 +40,7 @@ public class PoiSearchActivity extends AppCompatActivity implements TextWatcher,
         AutoCompleteTextView mKeywordText = (AutoCompleteTextView)findViewById(R.id.input_edittext);
         mKeywordText.addTextChangedListener(this);
         findViewById(R.id.rl_tv_map_pick).setOnClickListener(this);
-        RecyclerView mRecyclerView = (RecyclerView) findViewById(R.id.ll_rv_inputlist);
+        mRecyclerView = (RecyclerView) findViewById(R.id.ll_rv_inputlist);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mAdapter = getAdapter();
         mRecyclerView.setAdapter(mAdapter);
@@ -57,8 +60,19 @@ public class PoiSearchActivity extends AppCompatActivity implements TextWatcher,
      * @param tip
      */
     @Subscribe(threadMode = ThreadMode.MAIN,sticky = false,priority = 2)
-    public void onMessageEvent(Tip tip) {
+    public void close(Tip tip) {
        finish();
+    };
+
+    /**
+     * 设置当前城市
+     * @param amapLocation
+     */
+    @Subscribe(threadMode = ThreadMode.BACKGROUND)
+    public void setCity(AMapLocation amapLocation) {
+        if(amapLocation!=null){
+            this.city = amapLocation.getCity();
+        }
     };
     /**
      * 文本变化监听事件
@@ -70,7 +84,7 @@ public class PoiSearchActivity extends AppCompatActivity implements TextWatcher,
     @Override
     public void onTextChanged(CharSequence s, int start, int before, int count) {
         String newText = s.toString().trim();
-        InputtipsQuery inputquery = new InputtipsQuery(newText, null);
+        InputtipsQuery inputquery = new InputtipsQuery(newText, city);
         inputquery.setCityLimit(true);
         Inputtips inputTips = new Inputtips(this, inputquery);
         inputTips.setInputtipsListener(this);
@@ -87,7 +101,12 @@ public class PoiSearchActivity extends AppCompatActivity implements TextWatcher,
         if(i == AMapException.CODE_AMAP_SUCCESS){
             if(tips.size()>0)
                 tips.clear();
-            tips.addAll(list);
+            for (Tip tip:list) {
+                if(tip.getPoint()!=null){
+                    tips.add(tip);
+                }
+            }
+//            tips.addAll(list);
             mAdapter.notifyDataSetChanged();
         }
     }
@@ -97,13 +116,8 @@ public class PoiSearchActivity extends AppCompatActivity implements TextWatcher,
             @Override
             protected void convert(ViewHolder holder, final Tip tip, int position) {
 
-                if(tip.getPoint()!=null){
-                    holder.setText(R.id.poi_field_id,tip.getName());
-                    holder.setText(R.id.poi_value_id,tip.getDistrict());
-                    holder.setVisible(R.id.item_layout,true);
-                }else{
-                    holder.setVisible(R.id.item_layout,false);
-                }
+                holder.setText(R.id.poi_field_id,tip.getName());
+                holder.setText(R.id.poi_value_id,tip.getDistrict());
                 holder.getView(R.id.item_layout).setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {

@@ -1,10 +1,11 @@
 package cn.com.vicent.mymap;
 
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
 import android.support.v7.app.ActionBar;
@@ -45,7 +46,6 @@ import com.amap.api.navi.view.RouteOverLay;
 import com.amap.api.services.core.LatLonPoint;
 import com.amap.api.services.help.Tip;
 import com.autonavi.tbt.TrafficFacilityInfo;
-import com.google.gson.Gson;
 import com.zhy.adapter.recyclerview.CommonAdapter;
 import com.zhy.adapter.recyclerview.base.ViewHolder;
 
@@ -99,11 +99,6 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     private int routeIndex = 0;
     private int zindex = 0;
 
-    public static void start(Context context){
-        Intent intent = new Intent(context,NavigationActivity.class);
-        intent.putExtra("gps",true);
-        context.startActivity(intent);
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,33 +107,14 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         ActionBar actionBar = getSupportActionBar();
         if(actionBar!=null)actionBar.hide();
         EventBus.getDefault().register(this);
-        sharedPreferences = getSharedPreferences("navigation",MODE_PRIVATE);
         initView();
-        if(getIntent().getBooleanExtra("gps",false)){//是否需要恢复数据
-            initData();
-        }
         mapview.onCreate(savedInstanceState);// 此方法必须重写
         initMap();
-
+        int screenWidth = getWindowManager().getDefaultDisplay().getWidth(); // 屏幕宽（像素，如：480px）
+        int screenHeight = getWindowManager().getDefaultDisplay().getHeight(); // 屏幕高（像素，如：800p）
+        Log.d(TAG, "onCreate: "+screenWidth+"  "+screenHeight);
     }
 
-    /**
-     * 恢复数据
-     */
-    private void initData() {
-        String str = sharedPreferences.getString("adress","输入终点");
-        String lp = sharedPreferences.getString("lp","");
-        String lp1 = sharedPreferences.getString("lp1","");
-        tvEnd.setText(str);
-        endList.clear();
-        Gson gson=new Gson();
-        Bean bean = gson.fromJson(lp,Bean.class);
-        Bean bean1 = gson.fromJson(lp1,Bean.class);
-        endList.add(new NaviLatLng(bean.getLatitude(),bean.getLongitude()));
-        startList.add(new NaviLatLng(bean1.getLatitude(),bean1.getLongitude()));
-        navigationType = sharedPreferences.getInt("navigationType",0);
-
-    }
 
     private void initView() {
         mapview = (MapView) findViewById(R.id.navi_view);
@@ -241,26 +217,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 mAMapNavi.selectRouteId(routeOverlays.keyAt(routeIndex));
                 Intent gpsintent = new Intent(this, GPSNaviActivity.class);
                 startActivity(gpsintent);
-                sharedPreferences.edit().putString("adress",tvEnd.getText().toString()).apply();
-                double la1 = endList.get(0).getLatitude();
-                double lon1 = endList.get(0).getLongitude();
-                Bean beanEnd = new Bean();
-                beanEnd.setLatitude(la1);
-                beanEnd.setLongitude(lon1);
-                Gson gson = new Gson();
-                String lp = gson.toJson(beanEnd);
-                sharedPreferences.edit().putString("lp",lp).apply();
-                double la2 = startList.get(0).getLatitude();
-                double lon2 = startList.get(0).getLongitude();
-//                Bean beanStart = new Bean();
-//                beanStart.setLongitude(lon2);
-//                beanStart.setLatitude(la2);
-                beanEnd.setLatitude(la2);
-                beanEnd.setLongitude(lon2);
-                lp = gson.toJson(beanEnd);
-                sharedPreferences.edit().putString("lp1",lp).apply();
-                sharedPreferences.edit().putInt("navigationType",navigationType).apply();
-//                finish();//如果不finish（），实时导航后会导致mAMapNavi不可用，路线规划失败
+
             }
         }
     }
@@ -280,22 +237,11 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
     }
 
+
     /**
      * 获取终点信息
-     * @param requestCode
-     * @param resultCode
-     * @param intent
+     * @param tip
      */
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
-        if(resultCode==RESULT_OK){
-            tvEnd.setText("到     "+intent.getStringExtra("address"));
-            LatLonPoint endLp = intent.getParcelableExtra("value");
-            endList.clear();
-            endList.add(new NaviLatLng(endLp.getLatitude(),endLp.getLongitude()));
-        }
-    }
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMessageEvent(Tip tip) {
         tvEnd.setText("到     "+tip.getDistrict());
@@ -471,6 +417,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
         return new CommonAdapter<AMapNaviPath>(this, R.layout.item_recycleview_naviways, ways)
         {
+            private float maxWidth = 0;
+            Handler handler = new Handler();
             /**
              * 初始化Item样式
              */
@@ -514,16 +462,61 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 }
 
             }
+
+            /**
+             * 固定宽度文字自适应大小(小屏幕手机换行效果需要)
+             * @param textView
+             * @param text
+             */
+            private void reSizeTextView(TextView textView, String text){
+
+                Paint paint = textView.getPaint();
+                float textWidth = paint.measureText(text);
+                float textSizeInDp =  textView.getTextSize();
+
+                if(textWidth > maxWidth){
+                    for(;textSizeInDp > 0; textSizeInDp-=1){
+                        textView.setTextSize(textSizeInDp);
+                        paint = textView.getPaint();
+                        textWidth = paint.measureText(text);
+                        if(textWidth <= maxWidth){
+                            break;
+                        }
+                    }
+                }
+                textView.invalidate();
+                textView.setText(text);
+            }
+
             @Override
             protected void convert(final ViewHolder holder, final AMapNaviPath aMapNaviPath, final int position) {
-
-                String title = aMapNaviPath.getLabels();
-                if(title.split(",").length>=3){
-                    title = "推荐";
+                final TextView tvTitle = holder.getView(R.id.ll_tv_labels);
+                final TextView tvTime = holder.getView(R.id.ll_tv_time);
+                final TextView tvLength = holder.getView(R.id.ll_tv_length);
+                if(maxWidth==0){
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                           maxWidth =  tvTitle.getWidth()-tvTitle.getPaddingLeft()-tvTitle.getPaddingRight();
+                        }
+                    });
                 }
-                holder.setText(R.id.ll_tv_labels,title);
-                holder.setText(R.id.ll_tv_time,getTime(aMapNaviPath.getAllTime()));
-                holder.setText(R.id.ll_tv_length,getLength(aMapNaviPath.getAllLength()));
+                String title = aMapNaviPath.getLabels();
+                int len = title.split(",").length;
+                if(len >=3)
+                    title = "推荐";
+                else if(len==2){
+                }
+                final String text = title;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        reSizeTextView(tvTitle,text);
+                        reSizeTextView(tvTime,getTime(aMapNaviPath.getAllTime()));
+                        reSizeTextView(tvLength,getLength(aMapNaviPath.getAllLength()));
+                    }
+                });
+
 
                 holder.getView(ll_itemview).setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -597,6 +590,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     @Override
     public void onLocationChanged(AMapLocation amapLocation) {
         if (mListener != null&&amapLocation != null) {
+            EventBus.getDefault().post(amapLocation);
             if (amapLocation != null
                     &&amapLocation.getErrorCode() == 0) {
                 if(startList.size()==0)

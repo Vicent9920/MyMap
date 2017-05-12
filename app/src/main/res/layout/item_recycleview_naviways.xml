@@ -10,9 +10,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="拥堵较少"
+        android:textSize="14sp"
         android:gravity="center"
         android:textColor="#44000000"
-        android:background="#ccaaaaaa"/>
+        android:background="#ccaaaaaa"
+        android:paddingLeft="@dimen/dp3"
+        android:paddingRight="@dimen/dp3"/>
     <TextView
         android:id="@+id/ll_tv_time"
         android:layout_width="match_parent"
@@ -20,7 +23,9 @@
         android:text="25分钟"
         android:gravity="center"
         android:textColor="@color/black"
-        android:textSize="18sp"/>
+        android:textSize="18sp"
+        android:paddingLeft="@dimen/dp3"
+        android:paddingRight="@dimen/dp3"/>
 
     <TextView
         android:id="@+id/ll_tv_length"
@@ -28,6 +33,8 @@
         android:layout_height="wrap_content"
         android:text="10公里"
         android:gravity="center"
-        android:textColor="#44000000"/>
+        android:textColor="#44000000"
+        android:paddingLeft="@dimen/dp3"
+        android:paddingRight="@dimen/dp3"/>
 
 </LinearLayout>
