@@ -42,9 +42,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".PiclocationActivity"></activity>
+        <activity android:name=".PiclocationActivity" />
         <activity android:name=".GPSNaviActivity" />
-        <activity android:name=".PoiSearchActivity"></activity>
+        <activity android:name=".PoiSearchActivity" />
     </application>
 
 </manifest>
