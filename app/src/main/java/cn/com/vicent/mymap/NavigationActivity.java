@@ -505,8 +505,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 int len = title.split(",").length;
                 if(len >=3)
                     title = "推荐";
-                else if(len==2){
-                }
+
                 final String text = title;
                 handler.post(new Runnable() {
                     @Override
