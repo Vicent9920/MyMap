@@ -12,6 +12,7 @@ import com.amap.api.navi.AMapNaviView;
 import com.amap.api.navi.AMapNaviViewListener;
 import com.amap.api.navi.enums.NaviType;
 import com.amap.api.navi.model.AMapLaneInfo;
+import com.amap.api.navi.model.AMapModelCross;
 import com.amap.api.navi.model.AMapNaviCameraInfo;
 import com.amap.api.navi.model.AMapNaviCross;
 import com.amap.api.navi.model.AMapNaviInfo;
@@ -183,6 +184,8 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
 
     }
 
+
+
     @Override
     public void onEndEmulatorNavi() {
 
@@ -193,13 +196,13 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
 
     }
 
-    @Override
-    public void onCalculateRouteSuccess() {
+//    @Override
+//    public void onCalculateRouteSuccess() {
         //实时导航
 //        mAMapNavi.startNavi(NaviType.GPS);
         //模拟导航
 //        mAMapNavi.startNavi(NaviType.EMULATOR);
-    }
+//    }
 
     @Override
     public void onCalculateRouteFailure(int i) {
@@ -241,6 +244,8 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
 
     }
 
+
+
     @Override
     public void onServiceAreaUpdate(AMapServiceAreaInfo[] aMapServiceAreaInfos) {
 
@@ -256,10 +261,13 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
 
     }
 
+
     @Override
     public void showLaneInfo(AMapLaneInfo[] aMapLaneInfos, byte[] bytes, byte[] bytes1) {
 
     }
+
+
 
     @Override
     public void hideLaneInfo() {
@@ -267,9 +275,14 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
     }
 
     @Override
-    public void onCalculateMultipleRoutesSuccess(int[] ints) {
+    public void onCalculateRouteSuccess(int[] ints) {
 
     }
+
+//    @Override
+//    public void onCalculateMultipleRoutesSuccess(int[] ints) {
+//
+//    }
 
     @Override
     public void notifyParallelRoad(int i) {
@@ -305,4 +318,6 @@ public class GPSNaviActivity extends AppCompatActivity implements AMapNaviViewLi
     public void onPlayRing(int i) {
 
     }
+
+
 }

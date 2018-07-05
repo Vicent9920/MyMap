@@ -6,8 +6,9 @@ import android.os.Handler;
 import android.os.Message;
 import android.widget.Toast;
 
-import com.amap.api.navi.MyNaviListener;
+import com.amap.api.navi.AMapNaviListener;
 import com.amap.api.navi.model.AMapLaneInfo;
+import com.amap.api.navi.model.AMapModelCross;
 import com.amap.api.navi.model.AMapNaviCameraInfo;
 import com.amap.api.navi.model.AMapNaviCross;
 import com.amap.api.navi.model.AMapNaviInfo;
@@ -16,7 +17,6 @@ import com.amap.api.navi.model.AMapNaviTrafficFacilityInfo;
 import com.amap.api.navi.model.AMapServiceAreaInfo;
 import com.amap.api.navi.model.AimLessModeCongestionInfo;
 import com.amap.api.navi.model.AimLessModeStat;
-import com.amap.api.navi.model.AmapCarLocation;
 import com.amap.api.navi.model.NaviInfo;
 import com.autonavi.tbt.TrafficFacilityInfo;
 import com.iflytek.cloud.ErrorCode;
@@ -34,12 +34,12 @@ import java.util.LinkedList;
  * <p>
  * 导航SDK原则上是不提供语音播报模块的，如果您觉得此种播报方式不能满足你的需求，请自行优化或改进。
  */
-public class TTSController implements MyNaviListener {
+public class TTSController implements AMapNaviListener {
 
     /**
      * 请替换您自己申请的ID。
      */
-    private final String appId = "5350db8d";
+    private final String appId = "595f30c5";
 
     public static TTSController ttsManager;
     private Context mContext;
@@ -115,7 +115,7 @@ public class TTSController implements MyNaviListener {
 
     private TTSController(Context context) {
         mContext = context.getApplicationContext();
-        SpeechUtility.createUtility(mContext, SpeechConstant.APPID + "=5902934c");
+        SpeechUtility.createUtility(mContext, SpeechConstant.APPID + "=" + appId);
         if (mTts == null) {
             createSynthesizer();
         }
@@ -191,10 +191,6 @@ public class TTSController implements MyNaviListener {
     }
 
     @Override
-    public void onCalculateRouteSuccess() {
-    }
-
-    @Override
     public void onEndEmulatorNavi() {
     }
 
@@ -204,6 +200,8 @@ public class TTSController implements MyNaviListener {
             wordList.addLast(arg1);
         handler.obtainMessage(CHECK_TTS_PLAY).sendToTarget();
     }
+
+
 
 
     @Override
@@ -257,6 +255,7 @@ public class TTSController implements MyNaviListener {
 
     }
 
+
     @Override
     public void onServiceAreaUpdate(AMapServiceAreaInfo[] infoArray) {
 
@@ -272,10 +271,13 @@ public class TTSController implements MyNaviListener {
 
     }
 
+
+
     @Override
     public void showLaneInfo(AMapLaneInfo[] laneInfos, byte[] laneBackgroundInfo, byte[] laneRecommendedInfo) {
 
     }
+
 
 
     @Override
@@ -284,7 +286,7 @@ public class TTSController implements MyNaviListener {
     }
 
     @Override
-    public void onCalculateMultipleRoutesSuccess(int[] routeIds) {
+    public void onCalculateRouteSuccess(int[] routeIds) {
 
     }
 
@@ -320,12 +322,6 @@ public class TTSController implements MyNaviListener {
 
     @Override
     public void onPlayRing(int type) {
-
-    }
-
-
-    @Override
-    public void carProjectionChange(AmapCarLocation mCarProjectionChange) {
 
     }
 

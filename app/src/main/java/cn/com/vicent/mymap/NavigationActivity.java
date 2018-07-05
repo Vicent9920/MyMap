@@ -1,14 +1,20 @@
 package cn.com.vicent.mymap;
 
+import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
 import android.support.v7.app.ActionBar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -18,6 +24,7 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
@@ -31,6 +38,7 @@ import com.amap.api.maps.UiSettings;
 import com.amap.api.navi.AMapNavi;
 import com.amap.api.navi.AMapNaviListener;
 import com.amap.api.navi.model.AMapLaneInfo;
+import com.amap.api.navi.model.AMapModelCross;
 import com.amap.api.navi.model.AMapNaviCameraInfo;
 import com.amap.api.navi.model.AMapNaviCross;
 import com.amap.api.navi.model.AMapNaviInfo;
@@ -62,10 +70,10 @@ import static cn.com.vicent.mymap.R.id.ll_itemview;
 public class NavigationActivity extends AppCompatActivity implements View.OnClickListener, LocationSource, AMapLocationListener, AMapNaviListener {
     private static final String TAG = "NavigationActivity";
     private TabLayout mTabLayout;
-    private TextView tvStart,tvEnd;
+    private TextView tvStart, tvEnd;
     private TextView tvNavi;
     private RelativeLayout oneWay;
-    private TextView tvTime,tvLength;
+    private TextView tvTime, tvLength;
     private int navigationType = 0;
     private AMap amap;
     private MapView mapview;
@@ -74,7 +82,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     private AMapLocationClientOption mLocationOption;
     private RecyclerView mRecyclerView;
     private CommonAdapter mAdapter;
-    private int currentPosition,lastPosition = -1;
+    private int currentPosition, lastPosition = -1;
     private SharedPreferences sharedPreferences;
     /**************************************************导航相关************************************** ********************/
     private AMapNavi mAMapNavi;
@@ -105,21 +113,58 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_navigation);
         ActionBar actionBar = getSupportActionBar();
-        if(actionBar!=null)actionBar.hide();
+        if (actionBar != null) actionBar.hide();
         EventBus.getDefault().register(this);
         initView();
         mapview.onCreate(savedInstanceState);// 此方法必须重写
-        initMap();
+        checkPermission();
+
         int screenWidth = getWindowManager().getDefaultDisplay().getWidth(); // 屏幕宽（像素，如：480px）
         int screenHeight = getWindowManager().getDefaultDisplay().getHeight(); // 屏幕高（像素，如：800p）
-        Log.d(TAG, "onCreate: "+screenWidth+"  "+screenHeight);
+
+    }
+
+    private void checkPermission() {
+        XPermissionUtils.requestPermissions(this, 100, new String[]{
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.READ_PHONE_STATE},
+                new XPermissionUtils.OnPermissionListener() {
+                    @Override
+                    public void onPermissionGranted() {
+                        initMap();
+                    }
+
+                    @Override
+                    public void onPermissionDenied(final String[] deniedPermissions, boolean alwaysDenied) {
+                        new AlertDialog.Builder(NavigationActivity.this).setTitle("温馨提示")
+                                .setMessage("此处需要定位等权限才能正常使用")
+                                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        dialog.dismiss();
+                                        finish();
+                                    }
+                                })
+                                .setPositiveButton("验证权限", new DialogInterface.OnClickListener() {
+                                    @RequiresApi(api = Build.VERSION_CODES.M)
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        XPermissionUtils.requestPermissionsAgain(NavigationActivity.this, deniedPermissions,
+                                                100);
+                                    }
+                                })
+                                .show();
+                    }
+                });
     }
 
 
     private void initView() {
         mapview = (MapView) findViewById(R.id.navi_view);
         mRecyclerView = (RecyclerView) findViewById(R.id.rl_rlv_ways);
-        mRecyclerView.setLayoutManager(new GridLayoutManager(this,3));
+        mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
         mAdapter = getAdapter();
         mRecyclerView.setAdapter(mAdapter);
         oneWay = (RelativeLayout) findViewById(R.id.ll_rl_1way);
@@ -143,11 +188,11 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 String tabName = tab.getText().toString();
-                if(tabName.equals("驾车")){
+                if (tabName.equals("驾车")) {
                     navigationType = 0;
-                }else if(tabName.equals("步行")){
+                } else if (tabName.equals("步行")) {
                     navigationType = 1;
-                }else{
+                } else {
                     navigationType = 2;
                 }
                 clearRoute();
@@ -185,11 +230,12 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
         }
     }
+
     @Override
     public void onClick(View v) {
-        switch (v.getId()){
+        switch (v.getId()) {
             case R.id.rl_tv_end:
-                Intent intent = new Intent(this,PoiSearchActivity.class);//拾取坐标点
+                Intent intent = new Intent(this, PoiSearchActivity.class);//拾取坐标点
                 startActivity(intent);
                 endList.clear();
                 break;
@@ -202,16 +248,16 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
      * 导航按钮点击事件实现方法
      */
     private void clickNavigation() {
-        if(startList.size()==0){
-            Snackbar.make(tvEnd,"未获取到当前位置，不能导航",Snackbar.LENGTH_SHORT).show();
-        }else if(endList.size()==0){
-            Snackbar.make(tvEnd,"未获取到终点，不能导航",Snackbar.LENGTH_SHORT).show();
-        }else{
+        if (startList.size() == 0) {
+            Snackbar.make(tvEnd, "未获取到当前位置，不能导航", Snackbar.LENGTH_SHORT).show();
+        } else if (endList.size() == 0) {
+            Snackbar.make(tvEnd, "未获取到终点，不能导航", Snackbar.LENGTH_SHORT).show();
+        } else {
             if (!calculateSuccess) {
-                Snackbar.make(tvEnd,"请先计算路线",Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(tvEnd, "请先计算路线", Snackbar.LENGTH_SHORT).show();
                 return;
-            }else{//实时导航
-                if(routeIndex>ways.size()){
+            } else {//实时导航
+                if (routeIndex > ways.size()) {
                     routeIndex = 0;
                 }
                 mAMapNavi.selectRouteId(routeOverlays.keyAt(routeIndex));
@@ -224,6 +270,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
     /**
      * 绘制路线
+     *
      * @param routeId
      * @param path
      */
@@ -240,21 +287,26 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
     /**
      * 获取终点信息
+     *
      * @param tip
      */
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMessageEvent(Tip tip) {
-        tvEnd.setText("到     "+tip.getDistrict());
+        tvEnd.setText("到     " + tip.getDistrict());
         LatLonPoint endLp = tip.getPoint();
         endList.clear();
-        endList.add(new NaviLatLng(endLp.getLatitude(),endLp.getLongitude()));
-    };
+        endList.add(new NaviLatLng(endLp.getLatitude(), endLp.getLongitude()));
+    }
+
+    ;
+
     /**
      * 多条路线计算结果回调2
+     *
      * @param ints
      */
-    @Override
-    public void onCalculateMultipleRoutesSuccess(int[] ints) {
+//    @Override
+    private void onCalculateMultipleRoutesSuccessOld(int[] ints) {
         //清空上次计算的路径列表。
         routeOverlays.clear();
         ways.clear();
@@ -266,20 +318,20 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 ways.add(path);
             }
         }
-        if(ways.size()>0){
+        if (ways.size() > 0) {
             currentPosition = 0;
             lastPosition = -1;
             mAdapter.notifyDataSetChanged();
             mRecyclerView.setVisibility(View.VISIBLE);
             oneWay.setVisibility(View.GONE);
             tvNavi.setText("开始导航");
-        }else if(ways.size()==1){
+        } else if (ways.size() == 1) {
             mRecyclerView.setVisibility(View.GONE);
             oneWay.setVisibility(View.VISIBLE);
             tvTime.setText(getTime(ways.get(0).getAllTime()));
             tvLength.setText(getLength(ways.get(0).getAllLength()));
             tvNavi.setText("开始导航");
-        }else{
+        } else {
             mRecyclerView.setVisibility(View.GONE);
             tvNavi.setText("准备导航");
         }
@@ -289,8 +341,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     /**
      * 单条路线计算结果回调2
      */
-    @Override
-    public void onCalculateRouteSuccess() {
+//    @Override
+    private void onCalculateRouteSuccessOld() {
         /**
          * 清空上次计算的路径列表。
          */
@@ -353,6 +405,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         mapview.onResume();
         planRoute();//路线规划
     }
+
     /**
      * 清除当前地图上算好的路线
      */
@@ -364,15 +417,16 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         routeOverlays.clear();
         ways.clear();
     }
+
     /**
      * 路线规划
      */
     private void planRoute() {
         mRecyclerView.setVisibility(View.GONE);//多条路线规划结果
         oneWay.setVisibility(View.GONE);//一条路线规划结果
-        if(startList.size()>0 && endList.size()>0){
-            if(navigationType == 0){//驾车
-                int strategy=0;
+        if (startList.size() > 0 && endList.size() > 0) {
+            if (navigationType == 0) {//驾车
+                int strategy = 0;
                 try {
                     /**
                      * 方法:
@@ -395,9 +449,9 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                     e.printStackTrace();
                 }
                 mAMapNavi.calculateDriveRoute(startList, endList, wayList, strategy);
-            }else if(navigationType == 1){//步行
+            } else if (navigationType == 1) {//步行
                 mAMapNavi.calculateWalkRoute(startList.get(0), endList.get(0));
-            }else{//骑行
+            } else {//骑行
                 mAMapNavi.calculateRideRoute(startList.get(0), endList.get(0));
             }
         }
@@ -407,18 +461,17 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     @Override
     public void onCalculateRouteFailure(int i) {
         calculateSuccess = false;
-        Snackbar.make(tvEnd,"计算路线失败",Snackbar.LENGTH_SHORT).show();
+        Snackbar.make(tvEnd, "计算路线失败", Snackbar.LENGTH_SHORT).show();
 
     }
 
 
-
     private CommonAdapter getAdapter() {
 
-        return new CommonAdapter<AMapNaviPath>(this, R.layout.item_recycleview_naviways, ways)
-        {
+        return new CommonAdapter<AMapNaviPath>(this, R.layout.item_recycleview_naviways, ways) {
             private float maxWidth = 0;
             Handler handler = new Handler();
+
             /**
              * 初始化Item样式
              */
@@ -432,6 +485,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 tvTime.setTextColor(getResources().getColor(R.color.black));
                 tvTitle.setBackgroundResource(R.drawable.item_naviway_title_normal);
             }
+
             /**
              * 选中的背景色修改
              */
@@ -445,11 +499,12 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 tvLength.setTextColor(getResources().getColor(R.color.blue));
                 tvTitle.setBackgroundResource(R.drawable.item_naviway_title_selected);
             }
+
             /**
              * 清除选中的样式
              */
             private void cleanSelector() {
-                if(lastPosition!=-1){
+                if (lastPosition != -1) {
                     View view = mRecyclerView.getChildAt(lastPosition);
                     view.setBackgroundResource(R.drawable.item_naviway_normal_bg);
                     TextView tvTitle = (TextView) view.findViewById(R.id.ll_tv_labels);
@@ -468,18 +523,18 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
              * @param textView
              * @param text
              */
-            private void reSizeTextView(TextView textView, String text){
+            private void reSizeTextView(TextView textView, String text) {
 
                 Paint paint = textView.getPaint();
                 float textWidth = paint.measureText(text);
-                float textSizeInDp =  textView.getTextSize();
+                float textSizeInDp = textView.getTextSize();
 
-                if(textWidth > maxWidth){
-                    for(;textSizeInDp > 0; textSizeInDp-=1){
+                if (textWidth > maxWidth) {
+                    for (; textSizeInDp > 0; textSizeInDp -= 1) {
                         textView.setTextSize(textSizeInDp);
                         paint = textView.getPaint();
                         textWidth = paint.measureText(text);
-                        if(textWidth <= maxWidth){
+                        if (textWidth <= maxWidth) {
                             break;
                         }
                     }
@@ -493,26 +548,26 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                 final TextView tvTitle = holder.getView(R.id.ll_tv_labels);
                 final TextView tvTime = holder.getView(R.id.ll_tv_time);
                 final TextView tvLength = holder.getView(R.id.ll_tv_length);
-                if(maxWidth==0){
+                if (maxWidth == 0) {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                           maxWidth =  tvTitle.getWidth()-tvTitle.getPaddingLeft()-tvTitle.getPaddingRight();
+                            maxWidth = tvTitle.getWidth() - tvTitle.getPaddingLeft() - tvTitle.getPaddingRight();
                         }
                     });
                 }
                 String title = aMapNaviPath.getLabels();
                 int len = title.split(",").length;
-                if(len >=3)
+                if (len >= 3)
                     title = "推荐";
 
                 final String text = title;
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        reSizeTextView(tvTitle,text);
-                        reSizeTextView(tvTime,getTime(aMapNaviPath.getAllTime()));
-                        reSizeTextView(tvLength,getLength(aMapNaviPath.getAllLength()));
+                        reSizeTextView(tvTitle, text);
+                        reSizeTextView(tvTime, getTime(aMapNaviPath.getAllTime()));
+                        reSizeTextView(tvLength, getLength(aMapNaviPath.getAllLength()));
                     }
                 });
 
@@ -522,9 +577,9 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                     public void onClick(View view) {
                         currentPosition = position;
                         //已经选中，再次选中直接返回
-                        if(lastPosition==currentPosition){
+                        if (lastPosition == currentPosition) {
                             return;
-                        }else{
+                        } else {
                             //当前的下标值赋值给当前选择的线路下标值
                             routeIndex = position;
                             changeRoute();
@@ -535,18 +590,18 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
                     }
 
                 });
-                if (position==0){
+                if (position == 0) {
                     currentPosition = position;
-                    if(lastPosition==currentPosition){
+                    if (lastPosition == currentPosition) {
                         return;
-                    }else{
+                    } else {
                         routeIndex = position;
                         changeRoute();
                         selectedBackground(holder);
                         cleanSelector();
                     }
                     lastPosition = position;
-                }else{
+                } else {
                     initItemBackground(holder);
                 }
             }
@@ -555,57 +610,64 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
     /**
      * 计算路程
+     *
      * @param allLength
      * @return
      */
     private String getLength(int allLength) {
-        if(allLength>1000){
-            int remainder = allLength%1000;
-            String m = remainder>0 ? remainder+"米":"";
-            return allLength/1000+"公里"+m;
-        }else{
-            return allLength+"米";
+        if (allLength > 1000) {
+            int remainder = allLength % 1000;
+            String m = remainder > 0 ? remainder + "米" : "";
+            return allLength / 1000 + "公里" + m;
+        } else {
+            return allLength + "米";
         }
     }
+
     /**
      * 计算时间
+     *
      * @param allTime
      * @return
      */
     private String getTime(int allTime) {
-        if(allTime>3600){//1小时以上
-            int minute = allTime%3600;
-            String min = minute/60!=0?minute/60+"分钟":"";
-            return allTime/3600+"小时"+min;
-        }else{
-            int minute = allTime%3600;
-            return minute/60+"分钟";
+        if (allTime > 3600) {//1小时以上
+            int minute = allTime % 3600;
+            String min = minute / 60 != 0 ? minute / 60 + "分钟" : "";
+            return allTime / 3600 + "小时" + min;
+        } else {
+            int minute = allTime % 3600;
+            return minute / 60 + "分钟";
         }
     }
+
     /**
      * 定位地点
+     *
      * @param amapLocation
      */
     @Override
     public void onLocationChanged(AMapLocation amapLocation) {
-        if (mListener != null&&amapLocation != null) {
+        if (mListener != null && amapLocation != null) {
             EventBus.getDefault().post(amapLocation);
             if (amapLocation != null
-                    &&amapLocation.getErrorCode() == 0) {
-                if(startList.size()==0)
-                    startList.add(new NaviLatLng(amapLocation.getLatitude(),amapLocation.getLongitude()));
-                if(!calculateSuccess){
+                    && amapLocation.getErrorCode() == 0) {
+                if (startList.size() == 0)
+                    startList.add(new NaviLatLng(amapLocation.getLatitude(), amapLocation.getLongitude()));
+                if (!calculateSuccess) {
                     mListener.onLocationChanged(amapLocation);// 显示系统小蓝点
                 }
 
             } else {
-                String errText = "定位失败," + amapLocation.getErrorCode()+ ": " + amapLocation.getErrorInfo();
-                Log.e("AmapErr",errText);
+                String errText = "定位失败," + amapLocation.getErrorCode() + ": " + amapLocation.getErrorInfo();
+                Log.e("AmapErr", errText);
             }
         }
     }
+
     /**
      * 激活定位
+     *
      * @param listener
      */
     @Override
@@ -630,6 +692,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
             mlocationClient.startLocation();//启动定位
         }
     }
+
     /**
      * 注销定位
      */
@@ -642,6 +705,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         }
         mlocationClient = null;
     }
+
     /**
      * 方法必须重写
      */
@@ -668,7 +732,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     protected void onDestroy() {
         super.onDestroy();
         mapview.onDestroy();
-        if(null != mlocationClient){
+        if (null != mlocationClient) {
             mlocationClient.onDestroy();
         }
         EventBus.getDefault().unregister(this);
@@ -680,6 +744,13 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
         mAMapNavi.destroy();
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        XPermissionUtils.onRequestPermissionsResult(this, requestCode, permissions, grantResults);
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+    }
+
     /**
      * ************************************************** 在算路页面，以下接口全不需要处理，在以后的版本中SDK会进行优化***********************************************************************************************
      **/
@@ -688,20 +759,23 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onReCalculateRouteForYaw() {
 
     }
+
     @Override
     public void onInitNaviSuccess() {
 
     }
+
     @Override
     public void onGetNavigationText(int i, String s) {
 
     }
 
+
+
     @Override
     public void onInitNaviFailure() {
 
     }
-
 
 
     @Override
@@ -720,7 +794,6 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     }
 
 
-
     @Override
     public void onEndEmulatorNavi() {
 
@@ -730,6 +803,7 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onArriveDestination() {
 
     }
+
     @Override
     public void onReCalculateRouteForTrafficJam() {
 
@@ -760,6 +834,8 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
     }
 
+
+
     @Override
     public void onServiceAreaUpdate(AMapServiceAreaInfo[] aMapServiceAreaInfos) {
 
@@ -775,16 +851,27 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
 
     }
 
+
+
     @Override
     public void showLaneInfo(AMapLaneInfo[] aMapLaneInfos, byte[] bytes, byte[] bytes1) {
 
     }
+
 
     @Override
     public void hideLaneInfo() {
 
     }
 
+    @Override
+    public void onCalculateRouteSuccess(int[] ints) {
+        if(ints.length == 1){
+            onCalculateRouteSuccessOld();
+        }else {
+            onCalculateMultipleRoutesSuccessOld(ints);
+        }
+    }
 
 
     @Override
@@ -821,5 +908,9 @@ public class NavigationActivity extends AppCompatActivity implements View.OnClic
     public void onPlayRing(int i) {
 
     }
+
+
+
+
 
 }
